@@ -1,7 +1,9 @@
 #[macro_use]
 extern crate log;
 extern crate wiringpi;
+extern crate font8x8;
 
+use font8x8::UnicodeFonts;
 use wiringpi::{WiringPi, pin::{OutputPin, Value}};
 
 /// DS Pin of 74HC595(Pin14)
@@ -10,7 +12,6 @@ const PIN_DATA: u16 = 0;
 const PIN_LATCH: u16 = 2;
 //SH_CP Pin of 74HC595(Pin11)
 const PIN_CLOCK: u16 = 3;
-
 
 
 /// writes one line of the image
@@ -73,8 +74,21 @@ fn main() {
         println!("{:08b}", b);
     }
 
+    // this is the message
+    let message = "Hello Everybody";
+    
+
+    let x = 500;
     loop {
-        write_image(&face, &pi);
+        
+        for c in message.chars() {
+            if let Some(glyph) = font8x8::BASIC_FONTS.get(c) {
+                (0..25).into_iter()
+                    .for_each( |_x| write_image(&glyph, &pi));
+            }
+            
+        }
+
     }
        
 

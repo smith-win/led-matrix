@@ -10,3 +10,6 @@ edition = "2018"
 log = "0.4.0"
 env_logger = "0.8.3"
 wiringpi = "0.2.4"
+
+#found a nice fonts crate
+font8x8 = "0.2.7"
