@@ -3,8 +3,12 @@ extern crate log;
 extern crate wiringpi;
 extern crate font8x8;
 
-use font8x8::UnicodeFonts;
+mod display;
+
+
 use wiringpi::{WiringPi, pin::{OutputPin, Value}};
+use font8x8::UnicodeFonts;
+use display::Display;
 
 /// DS Pin of 74HC595(Pin14)
 const PIN_DATA: u16 = 0;
@@ -15,9 +19,8 @@ const PIN_CLOCK: u16 = 3;
 
 
 /// writes one line of the image
-//fn write_line(data_pin: &OutputPin<WiringPi<wiringpi::pin::WiringPi>>, clock_pin: &OutputPin<WiringPi<wiringpi::pin::WiringPi>>, val: u8) {
 fn write_line<T>(data_pin: &OutputPin<T>, clock_pin: &OutputPin<T>, val: u8) 
-    where T: wiringpi::pin::Pin{    
+    where T: wiringpi::pin::Pin {
         
     const DELAY : std::time::Duration = std::time::Duration::from_micros(10);
     (0u8..8u8).into_iter()
@@ -36,8 +39,8 @@ fn write_line<T>(data_pin: &OutputPin<T>, clock_pin: &OutputPin<T>, val: u8)
 }
 
 /// Writes image to the Matrix
-fn write_image(img: &[u8; 8], wp: &WiringPi<wiringpi::pin::WiringPi>) {
-
+fn write_image(img: &[u8], wp: &WiringPi<wiringpi::pin::WiringPi>) {
+    assert_eq!(8, img.len());
     const DELAY : std::time::Duration = std::time::Duration::from_millis(1);
     let mut x = 0x80u8;
 
@@ -58,6 +61,29 @@ fn write_image(img: &[u8; 8], wp: &WiringPi<wiringpi::pin::WiringPi>) {
 
 }
 
+/// Font 8x8 need rotating 90 degrees
+fn transpose_glyph(glyph: &[u8;8]) -> [u8;8] {
+
+    let mut result = [0u8; 8];
+
+    let mut y_val = 128;
+    for y in 0..8 {
+        let b = glyph[y];
+
+        let mut test = 1u8;
+        for x in 0..8 {
+            // println!("test {} , yval {}, result[x] {}", test, y_val, result[x]);
+            if b & test == test {
+                result[x] |= y_val;
+            }
+            test <<= 1;
+        }
+        y_val >>= 1;
+    }
+
+    result
+
+}
 
 fn main() {
     env_logger::init();
@@ -73,23 +99,60 @@ fn main() {
     for b in &face {
         println!("{:08b}", b);
     }
+    println!();
+    let face2 = transpose_glyph(&face);
+    for b in &face2 {
+        println!("{:08b}", b);
+    }
+
+    println!();
+    let face2 = transpose_glyph(&font8x8::BASIC_FONTS.get('f').unwrap());
+    for b in &face2 {
+        println!("{:08b}", b);
+    }
+
 
     // this is the message
-    let message = "Hello Everybody";
-    
+    let message = "ffff-fff Hello Everybody";
 
-    let x = 500;
-    loop {
-        
-        for c in message.chars() {
-            if let Some(glyph) = font8x8::BASIC_FONTS.get(c) {
-                (0..25).into_iter()
-                    .for_each( |_x| write_image(&glyph, &pi));
-            }
-            
+    // convert it into a &[u8; 8]
+    let mut vec:Vec<u8> = Vec::new();
+    for c in message.chars() {
+        if let Some(glyph) = font8x8::BASIC_FONTS.get(c) {
+            vec.extend_from_slice( &transpose_glyph(&glyph));
         }
-
     }
-       
+    // append a space at the end
+    if let Some(glyph) = font8x8::BASIC_FONTS.get(' ') {
+        vec.extend_from_slice( &transpose_glyph(&glyph));
+    }
+
+    loop {
+        let mut display = Display::new();
+
+        for y in 0..8 {
+            display.clear();
+            for x in 0..8 {
+                display.set(x, y, true);
+                (0..8).into_iter()
+                    .for_each( |_x| write_image( display.borrow_bytes(), &pi));
+            }
+        }
+    }
+
+    
+    // std::process::exit(0);
+
+    // loop {
+
+    //     let windows = vec.windows(8);
+
+    //     for w in windows {
+    //         let x = &w[0..8];
+    //         (0..8).into_iter()
+    //             .for_each( |_x| write_image(x, &pi));
+    //     }
+    // }
+      
 
 }
